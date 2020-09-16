@@ -37,17 +37,29 @@ pub fn infer<'a>(
     ctx: &Context<'a>,
     term: &'a Term<'a>,
 ) -> Result<&'a Type<'a>, Error<'a>> {
+    let mut ctx = ctx.clone();
+    infer_mut(arena, &mut ctx, term)
+}
+
+pub fn infer_mut<'a>(
+    arena: &'a Arena<Type<'a>>,
+    ctx: &mut Context<'a>,
+    term: &'a Term<'a>,
+) -> Result<&'a Type<'a>, Error<'a>> {
     match *term {
         Term::Var(id) => Ok(*ctx.get(&id).ok_or(Error::UnknownVariable(id))?),
         Term::Lam(arg_id, arg_ty, body) => {
-            let mut ctx2 = ctx.clone();
-            ctx2.insert(arg_id, arg_ty);
-            let result_ty = infer(arena, &ctx2, body)?;
+            let old = ctx.remove(&arg_id);
+            ctx.insert(arg_id, arg_ty);
+            let result_ty = infer_mut(arena, ctx, body)?;
+            if let Some(old) = old {
+                ctx.insert(arg_id, old);
+            }
             Ok(arena.alloc(Type::Fun(arg_ty, result_ty)))
         }
         Term::App(fun, arg) => {
-            let fun_ty = infer(arena, ctx, fun)?;
-            let arg_ty = infer(arena, ctx, arg)?;
+            let fun_ty = infer_mut(arena, ctx, fun)?;
+            let arg_ty = infer_mut(arena, ctx, arg)?;
             match fun_ty {
                 Type::Fun(expected_arg_ty, result_ty) => {
                     if arg_ty != *expected_arg_ty {

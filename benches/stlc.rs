@@ -4,7 +4,7 @@ extern crate test;
 use std::collections::HashMap;
 use typed_arena::Arena;
 
-use lambda::stlc::{*, Term::*, Type::*, *};
+use lambda::stlc::{Term::*, Type::*, *, *};
 
 // #[allow(soft_unstable)]
 #[bench]
@@ -23,4 +23,3 @@ fn lambdas(b: &mut test::bench::Bencher) {
         }
     })
 }
-
