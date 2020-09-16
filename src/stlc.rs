@@ -4,6 +4,7 @@ use typed_arena::Arena;
 #[derive(Debug, PartialEq, Eq)]
 pub enum Type<'a> {
     Int,
+    Bool,
     Fun(&'a Type<'a>, &'a Type<'a>),
 }
 
@@ -91,5 +92,44 @@ mod tests {
         ctx.insert(1, arena.alloc(Fun(arena.alloc(Int), arena.alloc(Int))));
         ctx.insert(2, arena.alloc(Int));
         assert_eq!(infer(&arena, &ctx, &App(&Var(1), &Var(2))), Ok(&Int));
+    }
+
+    #[test]
+    fn nested_lambda_1() {
+        let arena = Arena::new();
+        assert_eq!(
+            infer(
+                &arena,
+                &HashMap::new(),
+                &Lam(1, &Int, &Lam(2, &Bool, &Var(1)))
+            ),
+            Ok(&Fun(&Int, &Fun(&Bool, &Int)))
+        );
+    }
+
+    #[test]
+    fn nested_lambda_2() {
+        let arena = Arena::new();
+        assert_eq!(
+            infer(
+                &arena,
+                &HashMap::new(),
+                &Lam(1, &Int, &Lam(2, &Bool, &Var(2)))
+            ),
+            Ok(&Fun(&Int, &Fun(&Bool, &Bool)))
+        );
+    }
+
+    #[test]
+    fn shadowing() {
+        let arena = Arena::new();
+        assert_eq!(
+            infer(
+                &arena,
+                &HashMap::new(),
+                &Lam(1, &Int, &Lam(1, &Bool, &Var(1)))
+            ),
+            Ok(&Fun(&Int, &Fun(&Bool, &Bool)))
+        );
     }
 }
