@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use crate::context;
 use typed_arena::Arena;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -30,7 +30,7 @@ pub enum Error<'a> {
     },
 }
 
-pub type Context<'a> = HashMap<Id, &'a Type<'a>>;
+pub type Context<'a> = context::Context<Id, &'a Type<'a>>;
 
 pub fn infer<'a>(
     arena: &'a Arena<Type<'a>>,
@@ -49,12 +49,7 @@ pub fn infer_mut<'a>(
     match *term {
         Term::Var(id) => Ok(*ctx.get(&id).ok_or(Error::UnknownVariable(id))?),
         Term::Lam(arg_id, arg_ty, body) => {
-            let old = ctx.remove(&arg_id);
-            ctx.insert(arg_id, arg_ty);
-            let result_ty = infer_mut(arena, ctx, body)?;
-            if let Some(old) = old {
-                ctx.insert(arg_id, old);
-            }
+            let result_ty = infer_mut(arena, &mut ctx.with(arg_id, arg_ty), body)?;
             Ok(arena.alloc(Type::Fun(arg_ty, result_ty)))
         }
         Term::App(fun, arg) => {
@@ -83,7 +78,7 @@ mod tests {
     #[test]
     fn var() {
         let arena = Arena::new();
-        let mut ctx: Context = HashMap::new();
+        let mut ctx: Context = Context::default();
         ctx.insert(1, arena.alloc(Int));
         assert_eq!(infer(&arena, &ctx, &Var(1)), Ok(&Int));
     }
@@ -92,7 +87,7 @@ mod tests {
     fn lam() {
         let arena = Arena::new();
         assert_eq!(
-            infer(&arena, &HashMap::new(), &Lam(1, &Int, &Var(1))),
+            infer(&arena, &Context::default(), &Lam(1, &Int, &Var(1))),
             Ok(&Fun(&Int, &Int))
         );
     }
@@ -100,7 +95,7 @@ mod tests {
     #[test]
     fn app() {
         let arena = Arena::new();
-        let mut ctx: Context = HashMap::new();
+        let mut ctx: Context = Context::default();
         ctx.insert(1, arena.alloc(Fun(arena.alloc(Int), arena.alloc(Int))));
         ctx.insert(2, arena.alloc(Int));
         assert_eq!(infer(&arena, &ctx, &App(&Var(1), &Var(2))), Ok(&Int));
@@ -112,7 +107,7 @@ mod tests {
         assert_eq!(
             infer(
                 &arena,
-                &HashMap::new(),
+                &Context::default(),
                 &Lam(1, &Int, &Lam(2, &Bool, &Var(1)))
             ),
             Ok(&Fun(&Int, &Fun(&Bool, &Int)))
@@ -125,7 +120,7 @@ mod tests {
         assert_eq!(
             infer(
                 &arena,
-                &HashMap::new(),
+                &Context::default(),
                 &Lam(1, &Int, &Lam(2, &Bool, &Var(2)))
             ),
             Ok(&Fun(&Int, &Fun(&Bool, &Bool)))
@@ -138,7 +133,7 @@ mod tests {
         assert_eq!(
             infer(
                 &arena,
-                &HashMap::new(),
+                &Context::default(),
                 &Lam(1, &Int, &Lam(1, &Bool, &Var(1)))
             ),
             Ok(&Fun(&Int, &Fun(&Bool, &Bool)))
