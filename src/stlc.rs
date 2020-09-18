@@ -139,4 +139,21 @@ mod tests {
             Ok(&Fun(&Int, &Fun(&Bool, &Bool)))
         );
     }
+
+    #[test]
+    fn shadowing_2() {
+        let arena = Arena::new();
+        assert_eq!(
+            infer(
+                &arena,
+                &Context::default().with(2, &Fun(&Int, &Bool)),
+                &Lam(
+                    1,
+                    &Int,
+                    &App(&Lam(1, &Bool, &Var(1)), &App(&Var(2), &Var(1)))
+                )
+            ),
+            Ok(&Fun(&Int, &Bool))
+        );
+    }
 }
