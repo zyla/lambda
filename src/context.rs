@@ -1,8 +1,9 @@
 pub use hashmap::*;
 
 mod hashmap {
-    use std::collections::HashMap;
+    use std::collections::{hash_map::Entry, HashMap};
     use std::hash::Hash;
+    use std::mem;
     use std::ops::{Deref, DerefMut};
 
     #[derive(Debug, Clone)]
@@ -16,8 +17,13 @@ mod hashmap {
 
     impl<K: Hash + Clone + Eq, V> Context<K, V> {
         pub fn with(&mut self, key: K, value: V) -> Guard<K, V> {
-            let old_value = self.0.remove(&key);
-            self.0.insert(key.clone(), value);
+            let old_value = match self.0.entry(key.clone()) {
+                Entry::Occupied(mut e) => Some(mem::replace(e.get_mut(), value)),
+                Entry::Vacant(e) => {
+                    e.insert(value);
+                    None
+                }
+            };
             Guard {
                 ctx: self,
                 key: Some(key),
