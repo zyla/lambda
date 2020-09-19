@@ -137,6 +137,8 @@ fn generalize_mut<'a>(
             let new_tv = match mapping.get(&tv) {
                 Some(tv) => *tv,
                 None => {
+                    // FIXME: this is wrong - we shouldn't generalize over variables free in the
+                    // context
                     let new_tv = tyenv.fresh();
                     mapping.insert(tv, new_tv);
                     new_tv
