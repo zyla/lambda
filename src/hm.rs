@@ -115,8 +115,10 @@ fn subst<'a>(
 fn generalize<'a>(arena: &'a Arena<Type<'a>>, tyenv: &mut TyEnv, ty: &'a Type<'a>) -> PolyType<'a> {
     let mut mapping = HashMap::new();
     let new_ty = generalize_mut(arena, tyenv, &mut mapping, ty);
+    let mut foralls = mapping.values().copied().collect::<Vec<_>>();
+    foralls.sort();
     PolyType {
-        foralls: mapping.values().copied().collect(),
+        foralls,
         ty: new_ty,
     }
 }
@@ -256,6 +258,51 @@ mod tests {
                 }
             ),
             &Type::Fun(&Type::Int, &Type::Var(1))
+        );
+    }
+
+    #[test]
+    fn test_infer_1() {
+        assert_eq!(
+            infer(
+                &Arena::new(),
+                &Context::default(),
+                &Term::Lam(0, &Term::Var(0)),
+            ),
+            Ok(PolyType {
+                foralls: vec![1],
+                ty: &Type::Fun(&Type::Var(1), &Type::Var(1))
+            }),
+        );
+    }
+
+    #[test]
+    fn test_infer_2() {
+        assert_eq!(
+            infer(
+                &Arena::new(),
+                &Context::default(),
+                &Term::Lam(0, &Term::Lam(1, &Term::Var(0))),
+            ),
+            Ok(PolyType {
+                foralls: vec![2, 3],
+                ty: &Type::Fun(&Type::Var(2), &Type::Fun(&Type::Var(3), &Type::Var(2)))
+            }),
+        );
+    }
+
+    #[test]
+    fn test_infer_3() {
+        assert_eq!(
+            infer(
+                &Arena::new(),
+                &Context::default().with(0, PolyType::from_ty(&Type::Var(0))),
+                &Term::Var(0),
+            ),
+            Ok(PolyType {
+                foralls: vec![],
+                ty: &Type::Var(0),
+            }),
         );
     }
 }
